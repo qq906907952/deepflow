@@ -248,6 +248,10 @@ impl LocalModeDispatcher {
                 base.id as u8,
                 base.npb_dedup_enabled.load(Ordering::Relaxed),
             );
+            warn!(
+                "{} inject metapacket",
+                meta_packet.fmt_debug()
+            );
             flow_map.inject_meta_packet(&config, &mut meta_packet);
             let mini_packet = MiniPacket::new(overlay_packet, &meta_packet);
             for h in pipeline.handlers.iter_mut() {

@@ -547,6 +547,11 @@ impl FlowMap {
             #[cfg(target_os = "windows")]
             let local_epc_id = 0;
             (self.policy_getter).lookup(meta_packet, self.id as usize, local_epc_id);
+
+            warn!(
+                "{} inject flush",
+                meta_packet.fmt_debug()
+            );
             return;
         }
 
@@ -716,6 +721,11 @@ impl FlowMap {
         node: &mut FlowNode,
         meta_packet: &mut MetaPacket,
     ) -> bool {
+        warn!(
+            "{} update node",
+            meta_packet.fmt_debug()
+        );
+
         let flow_config = config.flow;
         let collector_config = config.collector;
         let flow_closed = self.update_tcp_flow(config, meta_packet, node);
@@ -756,6 +766,11 @@ impl FlowMap {
         node: &mut FlowNode,
         meta_packet: &mut MetaPacket,
     ) -> bool {
+        warn!(
+            "{} update node",
+            meta_packet.fmt_debug()
+        );
+
         let flow_config = config.flow;
         self.update_flow(config, node, meta_packet);
         let peers = &node.tagged_flow.flow.flow_metrics_peers;
@@ -793,6 +808,11 @@ impl FlowMap {
         node: &mut FlowNode,
         meta_packet: &mut MetaPacket,
     ) -> bool {
+        warn!(
+            "{} update other node",
+            meta_packet.fmt_debug()
+        );
+
         self.update_flow(config, node, meta_packet);
         let peers = &node.tagged_flow.flow.flow_metrics_peers;
         if peers[FLOW_METRICS_PEER_SRC].packet_count > 0
@@ -1402,6 +1422,11 @@ impl FlowMap {
         is_first_packet_direction: bool,
         is_first_packet: bool,
     ) {
+        warn!(
+            "{} collect metric",
+            meta_packet.fmt_debug()
+        );
+        
         let flow_config = &config.flow;
         let log_parser_config = &config.log_parser;
 
@@ -1466,6 +1491,12 @@ impl FlowMap {
         let mut node = self.init_flow(config, meta_packet);
         meta_packet.flow_id = node.tagged_flow.flow.flow_id;
         meta_packet.is_active_service = node.tagged_flow.flow.is_active_service;
+
+        warn!(
+            "{} new node",
+            meta_packet.fmt_debug()
+        );
+
         let mut reverse = false;
         if node.tagged_flow.flow.signal_source == SignalSource::EBPF {
             // Initialize a timeout long enough for eBPF Flow to enable successful session aggregation.
@@ -1515,6 +1546,12 @@ impl FlowMap {
         let mut node = self.init_flow(config, meta_packet);
         meta_packet.flow_id = node.tagged_flow.flow.flow_id;
         meta_packet.is_active_service = node.tagged_flow.flow.is_active_service;
+
+        warn!(
+            "{} new node",
+            meta_packet.fmt_debug()
+        );
+
         node.flow_state = FlowState::Established;
         // For eBPF UDP Flow, there is no special treatment for timeout.
         node.timeout = flow_config.flow_timeout.opening; // use opening timeout
@@ -1533,6 +1570,12 @@ impl FlowMap {
         let mut node = self.init_flow(config, meta_packet);
         meta_packet.flow_id = node.tagged_flow.flow.flow_id;
         node.flow_state = FlowState::Established;
+
+        warn!(
+            "{} new other node",
+            meta_packet.fmt_debug()
+        );
+
         // opening timeout
         node.timeout = config.flow.flow_timeout.opening;
         node

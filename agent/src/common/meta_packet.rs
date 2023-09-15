@@ -175,6 +175,20 @@ pub struct MetaPacket<'a> {
 }
 
 impl<'a> MetaPacket<'a> {
+    pub fn fmt_debug(&self) -> String {
+        format!(
+            "{:?}:{} -> {:?}:{} time:{} source:{:?} proto:{:?} flowid: {}",
+            self.lookup_key.src_ip,
+            self.lookup_key.src_port,
+            self.lookup_key.dst_ip,
+            self.lookup_key.dst_port,
+            self.lookup_key.timestamp.as_millis(),
+            self.signal_source,
+            self.lookup_key.proto,
+            self.flow_id,
+        )
+    }
+
     pub fn timestamp_adjust(&mut self, time_diff: i64) {
         if time_diff >= 0 {
             self.lookup_key.timestamp += Timestamp::from_nanos(time_diff as u64);

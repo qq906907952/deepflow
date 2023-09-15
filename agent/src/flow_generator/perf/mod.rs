@@ -17,7 +17,7 @@
 mod stats;
 pub mod tcp;
 pub(crate) mod udp;
-
+use log::warn;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -235,6 +235,7 @@ impl FlowLog {
         remote_epc: i32,
     ) -> Result<L7ParseResult> {
         if let Some(payload) = packet.get_l4_payload() {
+            warn!("{} parse_payload", packet.fmt_debug());
             let parser = self.l7_protocol_log_parser.as_mut().unwrap();
 
             let ret = parser.parse_payload(
@@ -248,6 +249,15 @@ impl FlowLog {
                 },
                 parse_param,
             );
+            if ret.is_ok() {
+                warn!("{} parse_payload success", packet.fmt_debug());
+            } else {
+                warn!(
+                    "{} parse_payload fail, payload:{:?}",
+                    packet.fmt_debug(),
+                    payload
+                );
+            }
 
             let mut cache_proto = |proto: L7ProtocolEnum| match packet.signal_source {
                 SignalSource::EBPF => {
@@ -297,6 +307,8 @@ impl FlowLog {
         checker: &L7ProtocolChecker,
     ) -> Result<L7ParseResult> {
         if let Some(payload) = packet.get_l4_payload() {
+            warn!("{} check payload", packet.fmt_debug());
+
             let pkt_size = flow_config.l7_log_packet_size as usize;
 
             let cut_payload = if pkt_size > payload.len() {
@@ -337,6 +349,8 @@ impl FlowLog {
                     continue;
                 };
                 if parser.check_payload(cut_payload, &param) {
+                    warn!("{} check {:?} success", packet.fmt_debug(), protocol,);
+
                     self.l7_protocol_enum = parser.l7_protocol_enum();
 
                     // redis can not determine dirction by RESP protocol when pakcet is from ebpf, special treatment
@@ -369,6 +383,11 @@ impl FlowLog {
                 }
             }
 
+            warn!(
+                "{} check fail, payload: {:?}",
+                packet.fmt_debug(),
+                payload,
+            );
             self.is_skip = match packet.signal_source {
                 SignalSource::EBPF => app_table.set_protocol_from_ebpf(
                     packet,
@@ -400,6 +419,7 @@ impl FlowLog {
     ) -> Result<L7ParseResult> {
         self.check_fail_recover();
         if self.is_skip {
+            warn!("{} skip parse", packet.fmt_debug());
             return Err(Error::L7ProtocolParseLimit);
         }
 
