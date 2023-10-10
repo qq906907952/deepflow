@@ -631,7 +631,6 @@ impl HttpLog {
             return Err(Error::L7ProtocolUnknown);
         };
 
-        (info.is_req_end, info.is_resp_end) = (p.is_req_end, p.is_resp_end);
         let direction = param.direction;
 
         let stream_id = read_u32_le(&payload[4..8]);
@@ -663,16 +662,70 @@ impl HttpLog {
             );
         }
 
+        info.version = String::from("2");
+        info.stream_id = Some(stream_id);
+
+        info.cal_rrt_for_multi_merge_log(param).map(|rrt| {
+            info.rrt = rrt;
+        });
+
+        if info.is_req_end || info.is_resp_end {
+            self.perf_stats.as_mut().map(|p| p.update_rrt(info.rrt));
+        }
+        return Ok(());
+    }
+
+    //  http2 data frame payload from ebpf uprobe, little endian
+    // +---------------------------------------------------------------+
+    // |                          streadID (32)                        |
+    // +---------------------------------------------------------------+
+    // |                          DataLength (32)                      |
+    // +---------------------------------------------------------------+
+    // |                          Data ($DataLength bytes)             |
+    // +---------------------------------------------------------------+
+    pub fn parse_http2_go_uprobe_data(
+        &mut self,
+        payload: &[u8],
+        param: &ParseParam,
+        info: &mut HttpInfo,
+    ) -> Result<()> {
+        if payload.len() < HTTPV2_CUSTOM_DATA_PAYLOAD_MIN_LENGTH {
+            return Err(Error::HttpHeaderParseFailed);
+        }
+        let Some(p) = &param.ebpf_param else {
+            return Err(Error::L7ProtocolUnknown);
+        };
+
+        let direction = param.direction;
+
+        let stream_id = read_u32_le(&payload[..4]);
+        let data_len = read_u32_le(&payload[4..8]) as usize;
+        if payload.len() < data_len + HTTPV2_CUSTOM_DATA_PAYLOAD_MIN_LENGTH {
+            return Err(Error::HttpHeaderParseFailed);
+        }
+        let data = &payload[HTTPV2_CUSTOM_DATA_PAYLOAD_MIN_LENGTH..data_len + HTTPV2_CUSTOM_DATA_PAYLOAD_MIN_LENGTH];
+
+        info.version = String::from("2");
+        info.stream_id = Some(stream_id);
+        info.raw_data_type = L7ProtoRawDataType::GoHttp2Uprobe;
+        match direction {
+            PacketDirection::ClientToServer => {
+                info.msg_type = LogMessageType::Request;
+                info.is_req_end=true;
+            },
+            PacketDirection::ServerToClient => {
+                info.msg_type = LogMessageType::Response;
+                info.is_resp_end=true;
+            },
+        }
+
+      
         if info.is_req_end {
             self.perf_stats.as_mut().map(|p| p.inc_req());
         }
         if info.is_resp_end {
             self.perf_stats.as_mut().map(|p| p.inc_resp());
         }
-
-        info.version = String::from("2");
-        info.stream_id = Some(stream_id);
-
         info.cal_rrt_for_multi_merge_log(param).map(|rrt| {
             info.rrt = rrt;
         });
