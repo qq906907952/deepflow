@@ -1255,6 +1255,13 @@ impl FlowMap {
                 flow_config.l7_protocol_inference_ttl as u64,
                 last,
                 self.ntp_diff.clone(),
+                flow_config.l7_log_packet_size as usize,
+                flow_config.tcp_max_frame,
+                node.tagged_flow.flow.flow_id,
+                (
+                    meta_packet.lookup_key.src_ip,
+                    meta_packet.lookup_key.src_port,
+                ),
             )
             .map(|o| Box::new(o));
         }
@@ -1791,6 +1798,9 @@ impl FlowMap {
         }
         self.flow_node_pool.put(node);
     }
+    // fn flush_node_buffer(&mut self, config: &FlowConfig, node: &mut FlowNode) {
+    //     node.
+    // }
 
     // go 版本的copyAndOutput
     fn node_updated_aftercare(
